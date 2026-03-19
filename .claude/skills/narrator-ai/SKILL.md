@@ -25,7 +25,7 @@ narrator-ai-cli config set app_key <app_key>
 
 1. **ALWAYS use `--json`** for all commands. Parse the JSON output to extract values for next steps.
 2. **NEVER fabricate `confirmed_movie_json`** — always use `narrator-ai-cli task search-movie` result.
-3. **NEVER guess file_ids** — always get them from `narrator-ai-cli file list --json`.
+3. **NEVER guess file_ids** — get video/srt from `material list` or `file list`, bgm from `bgm list`, dubbing from `dubbing list`.
 4. **Poll task status** — tasks are async. After creation, poll with `narrator-ai-cli task query <task_id> --json` until `status` is `2` (success) or `3` (failed).
 5. **video-composing uses generate-writing's order_num**, NOT clip-data's.
 6. **Prefer pre-built narration templates** — use `narrator-ai-cli task narration-styles --json` to list. Pick the genre matching the movie.
@@ -85,11 +85,16 @@ narrator-ai-cli task create generate-writing --json -d '{
 ### Step 3: Generate Clip Data
 
 ```bash
+# 3a. Select BGM and dubbing voice
+narrator-ai-cli bgm list --json                          # pick bgm id
+narrator-ai-cli dubbing list --lang 普通话 --json        # pick dubbing id and type
+
+# 3b. Create task
 narrator-ai-cli task create clip-data --json -d '{
   "order_num": "<task_order_num from step 2>",
-  "bgm": "<bgm_file_id from file list>",
-  "dubbing": "<voice_id, e.g. MiniMaxVoiceId20>",
-  "dubbing_type": "普通话"
+  "bgm": "<id from bgm list or file list>",
+  "dubbing": "<id from dubbing list>",
+  "dubbing_type": "<type from dubbing list, e.g. 普通话>"
 }'
 # Poll -> extract results.file_ids[0]
 ```
@@ -101,9 +106,9 @@ narrator-ai-cli task create clip-data --json -d '{
 ```bash
 narrator-ai-cli task create video-composing --json -d '{
   "order_num": "<task_order_num from step 2>",
-  "bgm": "<bgm_file_id from file list>",
-  "dubbing": "<voice_id, e.g. MiniMaxVoiceId20>",
-  "dubbing_type": "普通话"
+  "bgm": "<id from bgm list or file list>",
+  "dubbing": "<id from dubbing list>",
+  "dubbing_type": "<type from dubbing list, e.g. 普通话>"
 }'
 # Poll -> extract video URLs from results
 ```
@@ -161,13 +166,22 @@ target_mode: "1"=Hot Drama (needs confirmed_movie_json), "2"=Original Mix (needs
 ### Step 2: Fast Clip Data
 
 ```bash
+# 2a. Select BGM and dubbing voice
+narrator-ai-cli bgm list --json                          # pick bgm id
+narrator-ai-cli dubbing list --lang 普通话 --json        # pick dubbing id and type
+
+# 2b. Get source files (pre-built materials or uploaded)
+narrator-ai-cli material list --search "<movie_name>" --json
+# OR: narrator-ai-cli file list --json
+
+# 2c. Create task
 narrator-ai-cli task create fast-clip-data --json -d '{
   "task_id": "<task_id from step 1>",
   "file_id": "<results.file_ids[0] from step 1>",
-  "bgm": "<bgm_file_id from file list>",
-  "dubbing": "<voice_id, e.g. MiniMaxVoiceId20>",
-  "dubbing_type": "普通话",
-  "episodes_data": [{"video_oss_key": "<video_file_id>", "srt_oss_key": "<srt_file_id>", "negative_oss_key": "<video_file_id>", "num": 1}]
+  "bgm": "<id from bgm list or file list>",
+  "dubbing": "<id from dubbing list>",
+  "dubbing_type": "<type from dubbing list, e.g. 普通话>",
+  "episodes_data": [{"video_oss_key": "<video_id from material>", "srt_oss_key": "<srt_id from material>", "negative_oss_key": "<video_id>", "num": 1}]
 }'
 # Poll -> extract task_order_num
 ```
