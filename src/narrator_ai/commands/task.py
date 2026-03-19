@@ -2,10 +2,10 @@
 
 Supports two workflow paths:
 
-  Path 1 (Standard):
+  Path 1 (二创文案):
     popular-learning -> generate-writing -> clip-data -> video-composing -> magic-video(optional)
 
-  Path 2 (Fast):
+  Path 2 (原创文案, faster & cheaper):
     fast-writing -> fast-clip-data -> video-composing -> magic-video(optional)
 """
 
@@ -37,9 +37,9 @@ from narrator_ai.output import (
 app = typer.Typer(
     help=(
         "Task creation, query, and management.\n\n"
-        "Workflow Path 1 (Standard):\n"
+        "Workflow Path 1 (二创文案):\n"
         "  popular-learning -> generate-writing -> clip-data -> video-composing -> magic-video\n\n"
-        "Workflow Path 2 (Fast):\n"
+        "Workflow Path 2 (原创文案, faster & cheaper):\n"
         "  fast-writing -> fast-clip-data -> video-composing -> magic-video\n\n"
         "Use 'narrator-ai-cli task types' to list all available task types.\n"
         "Use 'narrator-ai-cli task create <type> --help' for creation details."
@@ -50,7 +50,7 @@ app = typer.Typer(
 TASK_TYPES = {
     "popular-learning": {
         "path": "/v2/task/commentary/create_popular_learning",
-        "name": "Popular Learning (Step 1 of Standard Path)",
+        "name": "Popular Learning (二创文案 Step 1)",
         "help": (
             "Learn narration style from a reference video.\n"
             "Required: video_srt_path (srt file_id)\n"
@@ -61,7 +61,7 @@ TASK_TYPES = {
     },
     "generate-writing": {
         "path": "/v2/task/commentary/create_generate_writing",
-        "name": "Generate Writing (Step 2 of Standard Path)",
+        "name": "Generate Writing (二创文案 Step 2)",
         "help": (
             "Generate narration script from learning model and video materials.\n"
             "Required: learning_model_id (from popular-learning OR pre-built template),\n"
@@ -74,10 +74,11 @@ TASK_TYPES = {
     },
     "fast-writing": {
         "path": "/v2/task/commentary/create_fast_generate_writing",
-        "name": "Fast Generate Writing (Step 1 of Fast Path)",
+        "name": "Fast Generate Writing (原创文案 Step 1, faster & cheaper)",
         "help": (
-            "Quickly generate narration script.\n"
-            "Required: playlet_name, target_mode (1=hot drama, 2=original mix, 3=new drama)\n"
+            "Original narration script generation. Faster speed, lower cost.\n"
+            "Three modes: 1=热门影视(hot drama), 2=原声混剪(original mix), 3=冷门/新剧(new drama)\n"
+            "Required: playlet_name, target_mode (1/2/3)\n"
             "          learning_model_id (pre-built template, see 'task narration-styles')\n"
             "            OR learning_srt (reference srt file_id, when no template available)\n"
             "          confirmed_movie_json (when target_mode=1, MUST use 'task search-movie' result)\n"
@@ -90,7 +91,7 @@ TASK_TYPES = {
     },
     "clip-data": {
         "path": "/v2/task/commentary/create_generate_clip_data",
-        "name": "Generate Clip Data (Step 3 of Standard Path)",
+        "name": "Generate Clip Data (二创文案 Step 3)",
         "help": (
             "Generate editing timeline data from narration script.\n"
             "Required: order_num (from generate-writing task_order_num),\n"
@@ -101,7 +102,7 @@ TASK_TYPES = {
     },
     "fast-clip-data": {
         "path": "/v2/task/commentary/create_generate_fast_writing_clip_data",
-        "name": "Fast Writing Clip Data (Step 2 of Fast Path)",
+        "name": "Fast Writing Clip Data (原创文案 Step 2)",
         "help": (
             "Generate editing timeline from fast-writing results.\n"
             "Required: task_id (from fast-writing), file_id (from fast-writing file_ids[0]),\n"
@@ -113,12 +114,13 @@ TASK_TYPES = {
     },
     "video-composing": {
         "path": "/v2/task/commentary/create_video_composing",
-        "name": "Video Composing (Step 4 Standard / Step 3 Fast)",
+        "name": "Video Composing (二创文案 Step 4 / 原创文案 Step 3)",
         "help": (
             "Compose final video from clip data.\n"
-            "Required: order_num (from generate-writing task_order_num, NOT clip-data),\n"
-            "          bgm (background music file_id), dubbing (voice id), dubbing_type\n"
-            "  OR:     generate_task_id (gradio internal task id)\n"
+            "Required: order_num, bgm, dubbing, dubbing_type\n"
+            "  order_num source differs by path:\n"
+            "    二创文案: use generate-writing's task_order_num (NOT clip-data's)\n"
+            "    原创文案: use fast-clip-data's task_order_num\n"
             "Optional: custom_cover, subtitle_style, font_path\n"
             "Output: task_id -> query for results with video URLs"
         ),
@@ -211,20 +213,20 @@ def create(
 
     Examples:
 
-      # Standard Path - Step 1: learn from reference video
+      # 二创文案 Step 1: learn from reference video
       narrator-ai-cli task create popular-learning -d '{"video_srt_path": "<srt_file_id>"}'
 
-      # Standard Path - Step 2: generate narration script
+      # 二创文案 Step 2: generate narration script
       narrator-ai-cli task create generate-writing -d '{"learning_model_id": "<id>", "playlet_name": "Movie", ...}'
 
-      # Fast Path - Step 1: quick narration from movie info
+      # 原创文案 Step 1: original narration (3 modes: hot/mix/new drama)
       narrator-ai-cli task create fast-writing -d '{"learning_model_id": "<id>", "target_mode": "1", "playlet_name": "Movie", "confirmed_movie_json": {...}}'
 
-      # Generate clip data (Standard Path Step 3)
-      narrator-ai-cli task create clip-data -d '{"order_num": "<order_num>", "bgm": "<bgm_file_id>", "dubbing": "MiniMaxVoiceId20", "dubbing_type": "普通话"}'
+      # 二创文案 Step 3 / clip data
+      narrator-ai-cli task create clip-data -d '{"order_num": "<order_num>", "bgm": "<bgm_id>", "dubbing": "<dubbing_id>", "dubbing_type": "普通话"}'
 
-      # Compose video (Step 4 Standard / Step 3 Fast)
-      narrator-ai-cli task create video-composing -d '{"order_num": "<order_num>", "bgm": "<bgm_file_id>", "dubbing": "MiniMaxVoiceId20", "dubbing_type": "普通话"}'
+      # 合成视频 (二创文案 Step 4 / 原创文案 Step 3)
+      narrator-ai-cli task create video-composing -d '{"order_num": "<order_num>", "bgm": "<bgm_id>", "dubbing": "<dubbing_id>", "dubbing_type": "普通话"}'
 
       # Visual template (optional final step)
       narrator-ai-cli task create magic-video -d '{"task_id": "<video_composing_task_id>", "template_name": ["template"]}'

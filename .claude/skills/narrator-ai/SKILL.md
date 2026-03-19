@@ -42,10 +42,13 @@ Before starting any workflow, you need to help the user make the following choic
 ### Decision 1: Which workflow path?
 
 ASK: "请选择工作流路径："
-- **Standard Path**: 爆款学习 → 生成解说文案 → 生成剪辑数据 → 合成视频 → 视觉模板(可选)
-  - Suitable when: user has reference video + SRT, wants full control
-- **Fast Path**: 快速文案 → 快速剪辑数据 → 合成视频 → 视觉模板(可选)
-  - Suitable when: user wants quick results, uses movie info + narration template
+- **二创文案**: 爆款学习 → 生成解说文案 → 生成剪辑数据 → 合成视频 → 视觉模板(可选)
+  - Based on existing reference video style, generates adapted narration
+  - Suitable when: user wants to recreate content based on reference material
+- **原创文案** (faster & cheaper): 快速文案 → 快速剪辑数据 → 合成视频 → 视觉模板(可选)
+  - Generates original narration from movie info + narration template
+  - Three sub-modes: 热门影视(hot drama), 原声混剪(original mix), 冷门/新剧(new drama)
+  - Suitable when: user wants original narration, faster speed, lower cost
 
 ### Decision 2: Narration style — pre-built template or custom learning?
 
@@ -126,7 +129,7 @@ ASK: "是否需要应用视觉模板？（可选步骤）"
   Show results to user, let them pick. The `name` field goes into `template_name` list.
 - **No**: Skip magic-video step.
 
-## Workflow Path 1: Standard
+## Workflow Path 1: 二创文案
 
 ```
 popular-learning(optional) -> generate-writing -> clip-data -> video-composing -> magic-video(optional)
@@ -230,7 +233,7 @@ narrator-ai-cli task create magic-video --json -d '{
 }'
 ```
 
-## Workflow Path 2: Fast
+## Workflow Path 2: 原创文案 (faster & cheaper)
 
 ```
 search-movie -> fast-writing -> fast-clip-data -> video-composing -> magic-video(optional)
@@ -248,9 +251,15 @@ narrator-ai-cli task search-movie "<movie_name>" --json
 # -> show 3 results, user picks one -> confirmed_movie_json
 ```
 
-### Step 1: Fast Writing
+### Step 1: Fast Writing (原创文案)
+
+ASK user to choose a mode:
+- **Mode 1 - 热门影视** (Hot Drama): generates original narration from movie info. Requires `confirmed_movie_json` from `search-movie`.
+- **Mode 2 - 原声混剪** (Original Mix): mixes original audio with narration. Requires `episodes_data[{srt_oss_key, num}]`.
+- **Mode 3 - 冷门/新剧** (New/Niche Drama): for lesser-known content. Requires `episodes_data[{srt_oss_key, num}]`.
 
 ```bash
+# Mode 1 example (most common):
 narrator-ai-cli task create fast-writing --json -d '{
   "learning_model_id": "<from Decision 2>",
   "target_mode": "1",
@@ -260,13 +269,16 @@ narrator-ai-cli task create fast-writing --json -d '{
   "perspective": "third_person",
   "confirmed_movie_json": <user-selected search result>
 }'
+
+# Mode 2/3 example:
+narrator-ai-cli task create fast-writing --json -d '{
+  "learning_model_id": "<from Decision 2>",
+  "target_mode": "2",
+  "playlet_name": "<movie_name>",
+  "episodes_data": [{"srt_oss_key": "<srt_file_id>", "num": 1}]
+}'
 # Poll -> extract task_id and results.file_ids[0]
 ```
-
-target_mode options (ASK user if not clear):
-- `"1"` = Hot Drama: needs `confirmed_movie_json` from `search-movie`
-- `"2"` = Original Mix: needs `episodes_data[{srt_oss_key, num}]`
-- `"3"` = New/Niche Drama: needs `episodes_data[{srt_oss_key, num}]`
 
 ### Step 2: Fast Clip Data
 
@@ -296,7 +308,7 @@ narrator-ai-cli task create fast-clip-data --json -d '{
 
 ### Step 3: Video Composing
 
-**IMPORTANT**: In Fast Path, `order_num` comes from `fast-clip-data`'s `task_order_num`.
+**IMPORTANT**: In 原创文案 path, `order_num` comes from `fast-clip-data`'s `task_order_num`.
 
 ```bash
 narrator-ai-cli task create video-composing --json -d '{

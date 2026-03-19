@@ -8,10 +8,10 @@ from narrator_ai.commands import bgm, config_cmd, dubbing, file, materials, task
 EPILOG = """
 Workflow Paths:
 
-  Path 1 (Standard):
+  Path 1 (二创文案):
     popular-learning -> generate-writing -> clip-data -> video-composing -> magic-video
 
-  Path 2 (Fast):
+  Path 2 (原创文案, faster & cheaper):
     fast-writing -> fast-clip-data -> video-composing -> magic-video
 
 Use 'narrator-ai-cli task types' to list all task types.
@@ -23,8 +23,8 @@ app = typer.Typer(
     help=(
         "Narrator AI CLI - API client for AI-powered video narration.\n\n"
         "Supports two workflow paths:\n\n"
-        "  [Standard] popular-learning -> generate-writing -> clip-data -> video-composing -> magic-video\n\n"
-        "  [Fast]     fast-writing -> fast-clip-data -> video-composing -> magic-video\n\n"
+        "  [二创文案] popular-learning -> generate-writing -> clip-data -> video-composing -> magic-video\n\n"
+        "  [原创文案] fast-writing -> fast-clip-data -> video-composing -> magic-video (faster & cheaper)\n\n"
         "All commands support --json for machine-readable output.\n"
         "Pass request body via -d '{...}' or -d @file.json."
     ),
