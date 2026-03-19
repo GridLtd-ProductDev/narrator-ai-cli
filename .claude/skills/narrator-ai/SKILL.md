@@ -24,53 +24,146 @@ narrator-ai-cli config set app_key <app_key>
 ## Core Rules
 
 1. **ALWAYS use `--json`** for all commands. Parse the JSON output to extract values for next steps.
-2. **NEVER fabricate `confirmed_movie_json`** — always use `narrator-ai-cli task search-movie` result.
-3. **NEVER guess IDs** — get video/srt from `material list` (pre-built) or `file list` (user-uploaded), bgm from `bgm list` (pre-built) or `file list` (user-uploaded audio), dubbing from `dubbing list`.
+2. **NEVER fabricate data** — never guess file IDs, movie info, or voice IDs. Always query from CLI commands.
+3. **ASK user to choose** when there are multiple options (pre-built vs custom, which template, which movie, etc.).
 4. **Poll task status** — tasks are async. After creation, poll with `narrator-ai-cli task query <task_id> --json` until `status` is `2` (success) or `3` (failed).
 5. **video-composing order_num source differs by path**:
    - Standard Path: use `generate-writing`'s `task_order_num` (NOT clip-data's)
    - Fast Path: use `fast-clip-data`'s `task_order_num`
-6. **Prefer pre-built narration templates** — use `narrator-ai-cli task narration-styles --json` to list. Pick the genre matching the movie.
-7. **search-movie may take 60+ seconds** — this is normal (Gradio backend).
-8. **dubbing list returns `id` and `type`** — pass `id` as `dubbing`, pass `type` as `dubbing_type`. They are separate fields.
-9. **negative_oss_key = video_oss_key** — always set `negative_oss_key` to the same value as `video_oss_key` in episodes_data.
+6. **dubbing list returns `id` and `type`** — pass `id` as `dubbing`, pass `type` as `dubbing_type`. They are two separate fields.
+7. **negative_oss_key = video_oss_key** — always set `negative_oss_key` to the same value as `video_oss_key` in episodes_data.
+8. **search-movie may take 60+ seconds** — this is normal (Gradio backend).
+
+## Decision Points (ASK USER)
+
+Before starting any workflow, you need to help the user make the following choices.
+**Present the options and let the user decide. Do NOT pick for them.**
+
+### Decision 1: Which workflow path?
+
+ASK: "请选择工作流路径："
+- **Standard Path**: 爆款学习 → 生成解说文案 → 生成剪辑数据 → 合成视频 → 视觉模板(可选)
+  - Suitable when: user has reference video + SRT, wants full control
+- **Fast Path**: 快速文案 → 快速剪辑数据 → 合成视频 → 视觉模板(可选)
+  - Suitable when: user wants quick results, uses movie info + narration template
+
+### Decision 2: Narration style — pre-built template or custom learning?
+
+ASK: "解说风格：使用预置模板还是自定义学习？"
+- **Option A: Pre-built template** (recommended, 90+ templates across 12 genres)
+  ```bash
+  narrator-ai-cli task narration-styles --json
+  # or filter: narrator-ai-cli task narration-styles --genre <genre> --json
+  ```
+  Show the list to user, let them pick one. The `id` field is the `learning_model_id`.
+
+- **Option B: Custom learning** (popular-learning task, Standard Path only)
+  Requires user to provide a reference video + SRT. The output `learning_model_id` is used in generate-writing.
+
+### Decision 3: Movie source files — pre-built material or user upload?
+
+ASK: "电影素材：使用预置素材还是自己上传的文件？"
+- **Option A: Pre-built materials** (93 movies ready to use)
+  ```bash
+  narrator-ai-cli material list --json
+  # or search: narrator-ai-cli material list --search "<movie_name>" --json
+  # or filter: narrator-ai-cli material list --genre <genre> --json
+  ```
+  Show results to user. Each entry has `video_id` and `srt_id`.
+  - Use `video_id` as `video_oss_key` AND `negative_oss_key`
+  - Use `srt_id` as `srt_oss_key`
+
+- **Option B: User's uploaded files**
+  ```bash
+  narrator-ai-cli file list --json
+  # or search: narrator-ai-cli file list --search "<keyword>" --json
+  ```
+  User picks video and SRT files from their cloud storage.
+
+### Decision 4: BGM — pre-built track or user upload?
+
+ASK: "背景音乐：使用预置BGM还是自己上传的音频？"
+- **Option A: Pre-built BGM** (146 tracks)
+  ```bash
+  narrator-ai-cli bgm list --json
+  # or search: narrator-ai-cli bgm list --search "<keyword>" --json
+  ```
+  Show results to user. The `id` field is the `bgm` parameter value.
+
+- **Option B: User's uploaded audio**
+  ```bash
+  narrator-ai-cli file list --json
+  ```
+  User picks an audio file. Use its `file_id` as the `bgm` parameter.
+
+### Decision 5: Dubbing voice — which voice and language?
+
+ASK: "配音角色：请选择配音语言和角色"
+```bash
+# First show available languages
+narrator-ai-cli dubbing languages --json
+
+# Then list voices for chosen language
+narrator-ai-cli dubbing list --lang <language> --json
+
+# Or filter by genre recommendation
+narrator-ai-cli dubbing list --tag <genre_tag> --json
+```
+Show results to user. From the selected voice:
+- `id` field → pass as `dubbing` parameter
+- `type` field → pass as `dubbing_type` parameter
+
+**There is no "custom upload" option for dubbing — always pick from the pre-built list.**
+(Users can create custom voices via `voice-clone` task separately.)
+
+### Decision 6: Visual template (optional)?
+
+ASK: "是否需要应用视觉模板？（可选步骤）"
+- **Yes**: Pick a template
+  ```bash
+  narrator-ai-cli task templates --json
+  ```
+  Show results to user, let them pick. The `name` field goes into `template_name` list.
+- **No**: Skip magic-video step.
 
 ## Workflow Path 1: Standard
 
 ```
-popular-learning -> generate-writing -> clip-data -> video-composing -> magic-video(optional)
+popular-learning(optional) -> generate-writing -> clip-data -> video-composing -> magic-video(optional)
 ```
 
-### Step 1: Popular Learning (or use pre-built template)
+### Step 1: Get learning_model_id
+
+Based on Decision 2:
 
 ```bash
-# Option A: Use pre-built template (recommended, skip to Step 2)
+# Option A: Pre-built template (recommended)
 narrator-ai-cli task narration-styles --json
-# Pick learning_model_id matching genre
+# -> user picks one -> learning_model_id = selected item's "id"
 
-# Option B: Learn from reference video
+# Option B: Custom learning
 narrator-ai-cli task create popular-learning --json -d '{
-  "video_srt_path": "<srt_file_id>",
-  "video_path": "<video_file_id>"
+  "video_srt_path": "<srt_file_id from material or file list>",
+  "video_path": "<video_file_id from material or file list>"
 }'
-# Poll until done, extract learning_model_id from results
+# Poll until done -> extract learning_model_id from results
 ```
 
 ### Step 2: Generate Writing
 
 ```bash
-# 2a. Search movie info
+# 2a. Search movie info (for confirmed_movie_json / story_info)
 narrator-ai-cli task search-movie "<movie_name>" --json
-# Pick one result -> use summary as story_info
+# Show 3 results to user, let them pick one
 
-# 2b. Get source files (use pre-built materials or uploaded files)
-narrator-ai-cli material list --search "<movie_name>" --json
-# OR: narrator-ai-cli file list --json
-# Use video_id as video_oss_key & negative_oss_key, srt_id as srt_oss_key
+# 2b. Get source files (based on Decision 3)
+# Option A: narrator-ai-cli material list --search "<movie_name>" --json
+# Option B: narrator-ai-cli file list --json
+# -> user picks video and SRT files
 
 # 2c. Create task
 narrator-ai-cli task create generate-writing --json -d '{
-  "learning_model_id": "<template_id or from step 1>",
+  "learning_model_id": "<from step 1>",
   "learning_srt": "",
   "native_video": "",
   "native_srt": "",
@@ -79,9 +172,9 @@ narrator-ai-cli task create generate-writing --json -d '{
   "target_platform": "抖音",
   "vendor_requirements": "",
   "task_count": 1,
-  "target_character_name": "<main_character_name>",
+  "target_character_name": "<ASK user for main character name>",
   "story_info": "",
-  "episodes_data": [{"video_oss_key": "<video_file_id>", "srt_oss_key": "<srt_file_id>", "negative_oss_key": "<video_file_id>", "num": 1}]
+  "episodes_data": [{"video_oss_key": "<video_id>", "srt_oss_key": "<srt_id>", "negative_oss_key": "<video_id>", "num": 1}]
 }'
 # Poll -> extract task_order_num and results.file_ids[0]
 ```
@@ -89,44 +182,51 @@ narrator-ai-cli task create generate-writing --json -d '{
 ### Step 3: Generate Clip Data
 
 ```bash
-# 3a. Select BGM and dubbing voice
-narrator-ai-cli bgm list --json                          # pick bgm id
-narrator-ai-cli dubbing list --lang 普通话 --json        # pick dubbing id and type
+# 3a. Get BGM (based on Decision 4)
+# Option A: narrator-ai-cli bgm list --json -> user picks -> bgm = selected "id"
+# Option B: narrator-ai-cli file list --json -> user picks audio -> bgm = selected "file_id"
 
-# 3b. Create task
+# 3b. Get dubbing voice (Decision 5)
+# narrator-ai-cli dubbing list --lang <lang> --json -> user picks
+# -> dubbing = selected "id", dubbing_type = selected "type"
+
+# 3c. Create task
 narrator-ai-cli task create clip-data --json -d '{
   "order_num": "<task_order_num from step 2>",
-  "bgm": "<id from bgm list or file list>",
-  "dubbing": "<id from dubbing list>",
-  "dubbing_type": "<type from dubbing list, e.g. 普通话>"
+  "bgm": "<from Decision 4>",
+  "dubbing": "<id from Decision 5>",
+  "dubbing_type": "<type from Decision 5>"
 }'
 # Poll -> extract results.file_ids[0]
 ```
 
 ### Step 4: Video Composing
 
-**IMPORTANT**: `order_num` is from step 2 (generate-writing), NOT step 3.
+**IMPORTANT**: `order_num` is from step 2 (generate-writing), NOT step 3 (clip-data).
 
 ```bash
 narrator-ai-cli task create video-composing --json -d '{
-  "order_num": "<task_order_num from step 2>",
-  "bgm": "<id from bgm list or file list>",
-  "dubbing": "<id from dubbing list>",
-  "dubbing_type": "<type from dubbing list, e.g. 普通话>"
+  "order_num": "<task_order_num from step 2 (generate-writing)>",
+  "bgm": "<same bgm as step 3>",
+  "dubbing": "<same dubbing as step 3>",
+  "dubbing_type": "<same dubbing_type as step 3>"
 }'
 # Poll -> extract video URLs from results
 ```
 
 ### Step 5 (Optional): Magic Video
 
+Based on Decision 6:
+
 ```bash
-# List available visual templates
+# List visual templates
 narrator-ai-cli task templates --json
+# -> user picks template name
 
 # Apply template
 narrator-ai-cli task create magic-video --json -d '{
   "task_id": "<task_id from step 4>",
-  "template_name": ["<template_name>"]
+  "template_name": ["<selected template name>"]
 }'
 ```
 
@@ -139,82 +239,95 @@ search-movie -> fast-writing -> fast-clip-data -> video-composing -> magic-video
 ### Step 0: Prepare
 
 ```bash
-# Get narration style template
+# Get narration style template (Decision 2)
 narrator-ai-cli task narration-styles --json
+# -> user picks one -> learning_model_id
 
 # Search movie info (required for target_mode=1)
 narrator-ai-cli task search-movie "<movie_name>" --json
-
-# Get source files (pre-built materials or uploaded)
-narrator-ai-cli material list --search "<movie_name>" --json
-# OR: narrator-ai-cli file list --json
+# -> show 3 results, user picks one -> confirmed_movie_json
 ```
 
 ### Step 1: Fast Writing
 
 ```bash
 narrator-ai-cli task create fast-writing --json -d '{
-  "learning_model_id": "<template_id>",
+  "learning_model_id": "<from Decision 2>",
   "target_mode": "1",
   "playlet_name": "<movie_name>",
   "model": "flash",
   "language": "Chinese (中文)",
   "perspective": "third_person",
-  "confirmed_movie_json": <search_result_object>
+  "confirmed_movie_json": <user-selected search result>
 }'
 # Poll -> extract task_id and results.file_ids[0]
 ```
 
-target_mode: "1"=Hot Drama (needs confirmed_movie_json), "2"=Original Mix (needs episodes_data), "3"=New Drama (needs episodes_data)
+target_mode options (ASK user if not clear):
+- `"1"` = Hot Drama: needs `confirmed_movie_json` from `search-movie`
+- `"2"` = Original Mix: needs `episodes_data[{srt_oss_key, num}]`
+- `"3"` = New/Niche Drama: needs `episodes_data[{srt_oss_key, num}]`
 
 ### Step 2: Fast Clip Data
 
 ```bash
-# 2a. Select BGM and dubbing voice
-narrator-ai-cli bgm list --json                          # pick bgm id
-narrator-ai-cli dubbing list --lang 普通话 --json        # pick dubbing id and type
+# 2a. Get BGM (Decision 4)
+# Option A: narrator-ai-cli bgm list --json -> user picks
+# Option B: narrator-ai-cli file list --json -> user picks audio
 
-# 2b. Get source files (pre-built materials or uploaded)
-narrator-ai-cli material list --search "<movie_name>" --json
-# OR: narrator-ai-cli file list --json
+# 2b. Get dubbing voice (Decision 5)
+# narrator-ai-cli dubbing list --lang <lang> --json -> user picks
 
-# 2c. Create task
+# 2c. Get source files (Decision 3)
+# Option A: narrator-ai-cli material list --search "<movie_name>" --json
+# Option B: narrator-ai-cli file list --json
+
+# 2d. Create task
 narrator-ai-cli task create fast-clip-data --json -d '{
   "task_id": "<task_id from step 1>",
   "file_id": "<results.file_ids[0] from step 1>",
-  "bgm": "<id from bgm list or file list>",
-  "dubbing": "<id from dubbing list>",
-  "dubbing_type": "<type from dubbing list, e.g. 普通话>",
-  "episodes_data": [{"video_oss_key": "<video_id from material>", "srt_oss_key": "<srt_id from material>", "negative_oss_key": "<video_id>", "num": 1}]
+  "bgm": "<from Decision 4>",
+  "dubbing": "<id from Decision 5>",
+  "dubbing_type": "<type from Decision 5>",
+  "episodes_data": [{"video_oss_key": "<video_id>", "srt_oss_key": "<srt_id>", "negative_oss_key": "<video_id>", "num": 1}]
 }'
 # Poll -> extract task_order_num
 ```
 
 ### Step 3: Video Composing
 
-**IMPORTANT**: In Fast Path, `order_num` comes from `fast-clip-data`'s `task_order_num` (NOT from generate-writing, since Fast Path has no generate-writing step).
+**IMPORTANT**: In Fast Path, `order_num` comes from `fast-clip-data`'s `task_order_num`.
 
 ```bash
 narrator-ai-cli task create video-composing --json -d '{
   "order_num": "<task_order_num from step 2 (fast-clip-data)>",
-  "bgm": "<id from bgm list or file list>",
-  "dubbing": "<id from dubbing list>",
-  "dubbing_type": "<type from dubbing list>"
+  "bgm": "<same bgm as step 2>",
+  "dubbing": "<same dubbing as step 2>",
+  "dubbing_type": "<same dubbing_type as step 2>"
 }'
 # Poll -> extract video URLs from results
 ```
 
 ### Step 4 (Optional): Magic Video
 
-Same as Standard Path Step 5.
+Based on Decision 6:
+```bash
+narrator-ai-cli task templates --json
+# -> user picks template
+
+narrator-ai-cli task create magic-video --json -d '{
+  "task_id": "<task_id from step 3>",
+  "template_name": ["<selected template name>"]
+}'
+```
 
 ## Standalone Tasks
 
 ```bash
-# Voice Clone
-narrator-ai-cli task create voice-clone --json -d '{"audio_file_id": "<file_id>"}'
+# Voice Clone — clone a voice from audio sample
+narrator-ai-cli task create voice-clone --json -d '{"audio_file_id": "<file_id from file list>"}'
 
-# Text to Speech
+# Text to Speech — convert text using cloned voice
 narrator-ai-cli task create tts --json -d '{"voice_id": "<id>", "audio_text": "text"}'
 ```
 
@@ -235,7 +348,7 @@ narrator-ai-cli task verify --json -d '{...}'           # verify materials
 narrator-ai-cli task get-writing --task-id <id> --file-id <id> --json
 narrator-ai-cli task save-writing --json -d '{"task_id":"...", "file_id":"...", "content":[{"type":"解说","text":"..."}]}'
 
-# Files
+# Files (user's uploaded files)
 narrator-ai-cli file list --json
 narrator-ai-cli file list --search "<keyword>" --json
 narrator-ai-cli file upload ./file.mp4 --json
@@ -244,30 +357,25 @@ narrator-ai-cli file download <file_id> --json
 narrator-ai-cli file storage --json
 narrator-ai-cli file delete <file_id> --json
 
-# Templates & Materials
-narrator-ai-cli task narration-styles --json            # pre-built narration models (90+)
-narrator-ai-cli task narration-styles --genre 情感人生 --json  # filter by genre
-narrator-ai-cli task templates --json                    # visual templates for magic-video
-narrator-ai-cli task search-movie "<name>" --json        # movie info for fast-writing
+# Pre-built Resources
+narrator-ai-cli task narration-styles --json            # 90+ narration style templates
+narrator-ai-cli task narration-styles --genre <g> --json
+narrator-ai-cli material list --json                     # 93 pre-built movies (video + SRT)
+narrator-ai-cli material list --genre <g> --json
+narrator-ai-cli material list --search "<name>" --json
+narrator-ai-cli material genres --json
+narrator-ai-cli bgm list --json                          # 146 pre-built BGM tracks
+narrator-ai-cli bgm list --search "<name>" --json
+narrator-ai-cli dubbing list --json                      # 63 pre-built dubbing voices
+narrator-ai-cli dubbing list --lang <lang> --json
+narrator-ai-cli dubbing list --tag <tag> --json
+narrator-ai-cli dubbing languages --json
+narrator-ai-cli dubbing tags --json
+narrator-ai-cli task templates --json                    # visual templates (magic-video)
+narrator-ai-cli task search-movie "<name>" --json        # movie info search
 
-# Pre-built Movie Materials (93 movies with video + SRT)
-narrator-ai-cli material list --json                     # list all movies
-narrator-ai-cli material list --genre 喜剧片 --json      # filter by genre
-narrator-ai-cli material list --search "飞驰" --json     # search by name
-narrator-ai-cli material genres --json                   # list available genres
-
-# Pre-built BGM Tracks (146 tracks)
-narrator-ai-cli bgm list --json                          # list all BGM
-narrator-ai-cli bgm list --search "单车" --json          # search by name
-
-# Pre-built Dubbing Voices (63 voices, 11 languages)
-narrator-ai-cli dubbing list --json                      # list all voices
-narrator-ai-cli dubbing list --lang 普通话 --json        # filter by language (= dubbing_type)
-narrator-ai-cli dubbing list --tag 喜剧 --json           # filter by genre tag
-narrator-ai-cli dubbing list --search "沈腾" --json      # search by name
-narrator-ai-cli dubbing languages --json                 # list languages
-narrator-ai-cli dubbing tags --json                      # list genre tags
-# IMPORTANT: the voice 'type' field IS the 'dubbing_type' value for task creation
+# All pre-built resources can be previewed at:
+# https://ceex7z9m67.feishu.cn/wiki/WLPnwBysairenFkZDbicZOfKnbc
 ```
 
 ## Task Status Codes
@@ -285,20 +393,3 @@ narrator-ai-cli dubbing tags --json                      # list genre tags
 - `10009` = insufficient balance
 - `10010` = task not found
 - `60000` = retryable error (retry the operation)
-
-## Pre-built Narration Templates (90+ templates)
-
-90+ templates across 12 genres. Always use the CLI to get the full list:
-
-```bash
-# List all templates
-narrator-ai-cli task narration-styles --json
-
-# Filter by genre
-narrator-ai-cli task narration-styles --genre 情感人生 --json
-narrator-ai-cli task narration-styles --genre 烧脑悬疑 --json
-```
-
-Available genres: 热血动作, 烧脑悬疑, 励志成长, 爆笑喜剧, 灾难求生, 悬疑惊悚, 惊悚恐怖, 东方奇谈, 家庭伦理, 情感人生, 奇幻科幻, 传奇人物
-
-View template previews and effects: https://ceex7z9m67.feishu.cn/wiki/WLPnwBysairenFkZDbicZOfKnbc
