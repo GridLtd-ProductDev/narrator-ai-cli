@@ -59,9 +59,10 @@ narrator-ai-cli task create popular-learning --json -d '{
 narrator-ai-cli task search-movie "<movie_name>" --json
 # Pick one result -> use summary as story_info
 
-# 2b. Get source files
-narrator-ai-cli file list --json
-# Pick video and srt file_ids
+# 2b. Get source files (use pre-built materials or uploaded files)
+narrator-ai-cli material list --search "<movie_name>" --json
+# OR: narrator-ai-cli file list --json
+# Use video_id as video_oss_key & negative_oss_key, srt_id as srt_oss_key
 
 # 2c. Create task
 narrator-ai-cli task create generate-writing --json -d '{
@@ -135,8 +136,9 @@ narrator-ai-cli task narration-styles --json
 # Search movie info (required for target_mode=1)
 narrator-ai-cli task search-movie "<movie_name>" --json
 
-# Get source files
-narrator-ai-cli file list --json
+# Get source files (pre-built materials or uploaded)
+narrator-ai-cli material list --search "<movie_name>" --json
+# OR: narrator-ai-cli file list --json
 ```
 
 ### Step 1: Fast Writing
@@ -208,10 +210,17 @@ narrator-ai-cli file download <file_id> --json
 narrator-ai-cli file storage --json
 narrator-ai-cli file delete <file_id> --json
 
-# Templates
-narrator-ai-cli task narration-styles --json            # pre-built narration models
+# Templates & Materials
+narrator-ai-cli task narration-styles --json            # pre-built narration models (90+)
+narrator-ai-cli task narration-styles --genre 情感人生 --json  # filter by genre
 narrator-ai-cli task templates --json                    # visual templates for magic-video
 narrator-ai-cli task search-movie "<name>" --json        # movie info for fast-writing
+
+# Pre-built Movie Materials (93 movies with video + SRT)
+narrator-ai-cli material list --json                     # list all movies
+narrator-ai-cli material list --genre 喜剧片 --json      # filter by genre
+narrator-ai-cli material list --search "飞驰" --json     # search by name
+narrator-ai-cli material genres --json                   # list available genres
 ```
 
 ## Task Status Codes
