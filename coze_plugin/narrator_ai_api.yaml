@@ -1,0 +1,1159 @@
+openapi: 3.0.1
+info:
+  title: Narrator AI
+  description: |
+    AI narrated video creation API. Supports two workflow paths:
+
+    **Path 1 (二创文案/Standard):**
+    popular-learning -> generate-writing -> clip-data -> video-composing -> magic-video(optional)
+
+    **Path 2 (原创文案/Fast, cheaper & faster):**
+    search-movie -> fast-writing -> fast-clip-data -> video-composing -> magic-video(optional)
+
+    **Key concepts:**
+    - file_id: UUID for uploaded files
+    - task_id: UUID returned on task creation, used to poll status
+    - task_order_num: assigned after task creation, used as order_num for downstream tasks
+    - learning_model_id: narration style model ID (from popular-learning or pre-built template)
+
+    **Authentication:** Pass your API key via the `app-key` header.
+
+    Full documentation: https://ceex7z9m67.feishu.cn/wiki/WLPnwBysairenFkZDbicZOfKnbc
+  version: v2.0.0
+
+servers:
+  - url: https://your-narrator-ai-server.com
+    description: Narrator AI Server (replace with your actual server URL)
+
+paths:
+  # ============================================================
+  # Task - Popular Learning (二创文案 Step 1)
+  # ============================================================
+  /v2/task/commentary/create_popular_learning:
+    post:
+      summary: Popular Learning - learn narration style from reference video
+      operationId: create_popular_learning
+      description: |
+        Learn narration style from a reference video/srt. Returns task_id.
+        Query task until status=2 to get learning_model_id.
+        You can skip this by using a pre-built template (see narration-styles).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - video_srt_path
+              properties:
+                video_srt_path:
+                  type: string
+                  description: SRT file_id (reference narration subtitle)
+                video_path:
+                  type: string
+                  description: Video file_id (optional reference video)
+                narrator_type:
+                  type: string
+                  description: "Narrator type, e.g. 'movie'"
+                  default: movie
+                model_version:
+                  type: string
+                  description: "Model version: 'advanced' or 'standard'"
+                  default: advanced
+      responses:
+        "200":
+          description: Task created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskCreateResponse"
+
+  # ============================================================
+  # Task - Generate Writing (二创文案 Step 2)
+  # ============================================================
+  /v2/task/commentary/create_generate_writing:
+    post:
+      summary: Generate Writing - generate narration script
+      operationId: create_generate_writing
+      description: |
+        Generate narration script from learning model and video materials.
+        Output: task_id -> query for task_order_num (used in clip-data and video-composing) and file_ids.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - learning_model_id
+                - playlet_name
+                - playlet_num
+                - target_platform
+                - episodes_data
+              properties:
+                learning_model_id:
+                  type: string
+                  description: From popular-learning task result or pre-built template
+                learning_srt:
+                  type: string
+                  description: Reference SRT file_id (when not using learning_model_id)
+                native_video:
+                  type: string
+                  description: Native video file_id
+                native_srt:
+                  type: string
+                  description: Native SRT file_id
+                playlet_name:
+                  type: string
+                  description: Movie/drama name
+                playlet_num:
+                  type: string
+                  description: Episode number
+                  default: "1"
+                target_platform:
+                  type: string
+                  description: "Target platform, e.g. '抖音'"
+                vendor_requirements:
+                  type: string
+                  description: Special requirements text
+                task_count:
+                  type: integer
+                  description: Number of tasks to create
+                  default: 1
+                target_character_name:
+                  type: string
+                  description: Main character name (for first-person narration)
+                story_info:
+                  type: string
+                  description: Story background info
+                episodes_data:
+                  type: array
+                  description: "Episode data: video_oss_key, srt_oss_key, negative_oss_key, num"
+                  items:
+                    type: object
+                    properties:
+                      video_oss_key:
+                        type: string
+                        description: Video file_id
+                      srt_oss_key:
+                        type: string
+                        description: SRT file_id
+                      negative_oss_key:
+                        type: string
+                        description: Negative sample video file_id (usually same as video_oss_key)
+                      num:
+                        type: integer
+                        description: Episode number
+      responses:
+        "200":
+          description: Task created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskCreateResponse"
+
+  # ============================================================
+  # Task - Fast Writing (原创文案 Step 1)
+  # ============================================================
+  /v2/task/commentary/create_fast_generate_writing:
+    post:
+      summary: Fast Writing - original narration script generation (faster & cheaper)
+      operationId: create_fast_writing
+      description: |
+        Original narration generation. Three modes:
+        - target_mode=1 (Hot Drama): requires confirmed_movie_json from search-movie
+        - target_mode=2 (Original Mix): requires episodes_data[{srt_oss_key, num}]
+        - target_mode=3 (New Drama): requires episodes_data[{srt_oss_key, num}]
+
+        Output: task_id, query for file_ids[0] (used in fast-clip-data).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - playlet_name
+                - target_mode
+              properties:
+                learning_model_id:
+                  type: string
+                  description: Pre-built template ID or from popular-learning (one of learning_model_id/learning_srt required)
+                learning_srt:
+                  type: string
+                  description: Reference SRT file_id (when no template available)
+                target_mode:
+                  type: string
+                  description: "'1'=Hot Drama, '2'=Original Mix, '3'=New Drama"
+                  enum: ["1", "2", "3"]
+                playlet_name:
+                  type: string
+                  description: Movie/drama name
+                confirmed_movie_json:
+                  type: object
+                  description: "Movie info from search-movie (REQUIRED for target_mode=1). Must use search result, do NOT fabricate."
+                episodes_data:
+                  type: array
+                  description: "Episode data for mode 2/3: [{srt_oss_key, num}]"
+                  items:
+                    type: object
+                    properties:
+                      srt_oss_key:
+                        type: string
+                      num:
+                        type: integer
+                model:
+                  type: string
+                  description: "'pro' (higher quality, 15pts/char) or 'flash' (faster, 5pts/char)"
+                  default: pro
+                  enum: [pro, flash]
+                language:
+                  type: string
+                  description: Output language
+                  default: "Chinese (中文)"
+                perspective:
+                  type: string
+                  description: Narration perspective
+                  default: third_person
+                  enum: [first_person, third_person]
+                target_character_name:
+                  type: string
+                  description: Required when perspective=first_person
+                custom_script_result_path:
+                  type: string
+                  description: Custom script result path
+                webhook_url:
+                  type: string
+                  description: Callback URL for async notification
+                webhook_token:
+                  type: string
+                  description: Callback authentication token
+                webhook_data:
+                  type: string
+                  description: Passthrough data for callback
+      responses:
+        "200":
+          description: Task created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskCreateResponse"
+
+  # ============================================================
+  # Task - Clip Data (二创文案 Step 3)
+  # ============================================================
+  /v2/task/commentary/create_generate_clip_data:
+    post:
+      summary: Generate Clip Data - editing timeline from narration script
+      operationId: create_clip_data
+      description: |
+        Generate editing timeline data from narration script.
+        order_num comes from generate-writing's task_order_num.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - order_num
+                - bgm
+                - dubbing
+                - dubbing_type
+              properties:
+                order_num:
+                  type: string
+                  description: task_order_num from generate-writing
+                bgm:
+                  type: string
+                  description: BGM file_id (from bgm list)
+                dubbing:
+                  type: string
+                  description: "Voice ID (e.g. MiniMaxVoiceId20)"
+                dubbing_type:
+                  type: string
+                  description: "Language type (e.g. '普通话')"
+                custom_cover:
+                  type: string
+                  description: Custom cover image file_id
+                subtitle_style:
+                  type: string
+                  description: Subtitle style config
+                font_path:
+                  type: string
+                  description: Custom font file path
+      responses:
+        "200":
+          description: Task created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskCreateResponse"
+
+  # ============================================================
+  # Task - Fast Clip Data (原创文案 Step 2)
+  # ============================================================
+  /v2/task/commentary/create_generate_fast_writing_clip_data:
+    post:
+      summary: Fast Clip Data - editing timeline from fast-writing results
+      operationId: create_fast_clip_data
+      description: |
+        Generate editing timeline from fast-writing results.
+        Output: task_order_num (used in video-composing).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - task_id
+                - file_id
+                - bgm
+                - dubbing
+                - dubbing_type
+                - episodes_data
+              properties:
+                task_id:
+                  type: string
+                  description: task_id from fast-writing
+                file_id:
+                  type: string
+                  description: file_ids[0] from fast-writing results
+                bgm:
+                  type: string
+                  description: BGM file_id
+                dubbing:
+                  type: string
+                  description: Voice ID
+                dubbing_type:
+                  type: string
+                  description: "Language type (e.g. '普通话')"
+                episodes_data:
+                  type: array
+                  description: "Episode data: [{video_oss_key, srt_oss_key, negative_oss_key, num}]"
+                  items:
+                    type: object
+                    properties:
+                      video_oss_key:
+                        type: string
+                      srt_oss_key:
+                        type: string
+                      negative_oss_key:
+                        type: string
+                      num:
+                        type: integer
+                narration_script_file:
+                  type: string
+                  description: Custom narration script file_id
+                custom_cover:
+                  type: string
+                subtitle_style:
+                  type: string
+                font_path:
+                  type: string
+      responses:
+        "200":
+          description: Task created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskCreateResponse"
+
+  # ============================================================
+  # Task - Video Composing
+  # ============================================================
+  /v2/task/commentary/create_video_composing:
+    post:
+      summary: Video Composing - compose final video
+      operationId: create_video_composing
+      description: |
+        Compose final video from clip data.
+        IMPORTANT: order_num comes from generate-writing (standard path) or fast-clip-data (fast path), NOT from clip-data.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - order_num
+                - bgm
+                - dubbing
+                - dubbing_type
+              properties:
+                order_num:
+                  type: string
+                  description: "task_order_num from generate-writing (standard) or fast-clip-data (fast)"
+                bgm:
+                  type: string
+                  description: BGM file_id
+                dubbing:
+                  type: string
+                  description: Voice ID
+                dubbing_type:
+                  type: string
+                  description: "Language type (e.g. '普通话')"
+                custom_cover:
+                  type: string
+                subtitle_style:
+                  type: string
+                font_path:
+                  type: string
+      responses:
+        "200":
+          description: Task created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskCreateResponse"
+
+  # ============================================================
+  # Task - Magic Video (Optional Final Step)
+  # ============================================================
+  /v2/task/commentary/create_magic_video:
+    post:
+      summary: Magic Video - apply visual template to composed video
+      operationId: create_magic_video
+      description: |
+        Apply visual template to the composed video.
+        Mode 1 (one_stop): use task_id from video-composing + template_name.
+        Mode 2 (staged): use file_id (clip data) + template_name.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - template_name
+              properties:
+                task_id:
+                  type: string
+                  description: task_id from video-composing (one_stop mode)
+                file_id:
+                  type: string
+                  description: clip data file_id from clip-data results (staged mode)
+                clip_data:
+                  type: object
+                  description: Clip data JSON object (staged mode alternative)
+                template_name:
+                  type: array
+                  description: List of visual template names (use get_magic_templates to list)
+                  items:
+                    type: string
+                template_params:
+                  type: object
+                  description: Per-template parameters dict
+                mode:
+                  type: string
+                  description: "'one_stop' or 'staged'"
+                  enum: [one_stop, staged]
+      responses:
+        "200":
+          description: Task created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskCreateResponse"
+
+  # ============================================================
+  # Task - Voice Clone
+  # ============================================================
+  /v2/task/voice_clone/create:
+    post:
+      summary: Voice Clone - clone voice from audio sample
+      operationId: create_voice_clone
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - audio_file_id
+              properties:
+                audio_file_id:
+                  type: string
+                  description: Audio file_id for voice cloning
+                clone_model:
+                  type: string
+                  description: Clone model version
+                  default: pro
+      responses:
+        "200":
+          description: Task created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskCreateResponse"
+
+  # ============================================================
+  # Task - Text to Speech
+  # ============================================================
+  /v2/task/text_to_speech/create:
+    post:
+      summary: TTS - convert text to speech
+      operationId: create_tts
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - voice_id
+                - audio_text
+              properties:
+                voice_id:
+                  type: string
+                  description: Voice ID (from voice-clone or dubbing list)
+                audio_text:
+                  type: string
+                  description: Text content to convert to speech
+                clone_model:
+                  type: string
+                  default: pro
+      responses:
+        "200":
+          description: Task created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskCreateResponse"
+
+  # ============================================================
+  # Task - Query
+  # ============================================================
+  /v2/task/commentary/query/{task_id}:
+    get:
+      summary: Query task status and results
+      operationId: query_task
+      description: |
+        Poll task status until completion.
+        Status: 0=init, 1=in_progress, 2=success, 3=failed, 4=cancelled.
+        Key fields: task_order_num, results.file_ids, results.tasks, consumed_points.
+      parameters:
+        - name: task_id
+          in: path
+          required: true
+          description: Task ID (UUID) from task creation
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Task details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+
+  # ============================================================
+  # Task - List
+  # ============================================================
+  /v2/task/commentary/list:
+    get:
+      summary: List tasks with pagination and filters
+      operationId: list_tasks
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+        - name: status
+          in: query
+          description: "Filter: 0=init, 1=in_progress, 2=success, 3=failed, 4=cancelled"
+          schema:
+            type: integer
+        - name: type
+          in: query
+          description: "Filter: 1=popular_learning, 2=generate_writing, 3=video_composing, 4=voice_clone, 5=tts, 6=clip_data, 7=magic_video, 9=fast_writing, 10=fast_clip_data"
+          schema:
+            type: integer
+        - name: category
+          in: query
+          description: "Filter: 'translate' or 'commentary'"
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Task list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+
+  # ============================================================
+  # Task - Budget Estimation
+  # ============================================================
+  /v2/task/commentary/consume_budget:
+    post:
+      summary: Estimate points consumption before creating tasks
+      operationId: estimate_budget
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                learning_model_id:
+                  type: string
+                learning_srt:
+                  type: string
+                native_video:
+                  type: string
+                native_srt:
+                  type: string
+                episodes_data:
+                  type: array
+                  items:
+                    type: object
+                model_version:
+                  type: string
+                narrator_type:
+                  type: string
+                template_names:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        "200":
+          description: Budget estimation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+
+  # ============================================================
+  # Task - Material Verification
+  # ============================================================
+  /v2/task/commentary/material_verification:
+    post:
+      summary: Verify materials before creating tasks
+      operationId: verify_materials
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                bgm:
+                  type: string
+                  description: BGM file_id
+                dubing_id:
+                  type: string
+                  description: Voice ID
+                native_video:
+                  type: string
+                native_srt:
+                  type: string
+                learning_model_id:
+                  type: string
+                learning_srt:
+                  type: string
+                episodes_data:
+                  type: array
+                  items:
+                    type: object
+      responses:
+        "200":
+          description: Verification result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+
+  # ============================================================
+  # Task - Get Writing
+  # ============================================================
+  /v2/task/commentary/get_generate_writed:
+    get:
+      summary: Get generated narration script content
+      operationId: get_writing
+      parameters:
+        - name: task_id
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: file_id
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Writing content
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+
+  # ============================================================
+  # Task - Save Writing
+  # ============================================================
+  /v2/task/commentary/save_generate_writed:
+    post:
+      summary: Save modified narration script content
+      operationId: save_writing
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - task_id
+                - file_id
+                - content
+              properties:
+                task_id:
+                  type: string
+                file_id:
+                  type: string
+                content:
+                  type: array
+                  description: "Segments: [{type: 'narration'/'original', text: '...'}]"
+                  items:
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                        enum: [narration, original]
+                      text:
+                        type: string
+      responses:
+        "200":
+          description: Save result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+
+  # ============================================================
+  # Task - Save Clip Data
+  # ============================================================
+  /v2/task/commentary/save_clip_data:
+    post:
+      summary: Save modified clip/editing data
+      operationId: save_clip
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - task_id
+                - file_id
+                - clip_data
+              properties:
+                task_id:
+                  type: string
+                file_id:
+                  type: string
+                clip_data:
+                  type: object
+                  description: Clip/editing data object
+      responses:
+        "200":
+          description: Save result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+
+  # ============================================================
+  # Task - Search Movie Info
+  # ============================================================
+  /v2/task/commentary/search_media_information:
+    get:
+      summary: Search movie/drama info for fast-writing
+      operationId: search_movie
+      description: |
+        Search movie database. Returns up to 3 results.
+        MUST use before creating fast-writing task with target_mode=1.
+        Pass selected result as confirmed_movie_json. Do NOT fabricate movie info.
+        Note: may take up to 60 seconds (Gradio backend). Results cached 24 hours.
+      parameters:
+        - name: query
+          in: query
+          required: true
+          description: Movie/drama name to search
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Movie search results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+
+  # ============================================================
+  # Task - Get Magic Templates
+  # ============================================================
+  /v2/task/commentary/get_magic_templates:
+    get:
+      summary: List available visual templates for magic-video
+      operationId: get_magic_templates
+      responses:
+        "200":
+          description: Template list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+
+  # ============================================================
+  # File - Upload Presigned URL
+  # ============================================================
+  /v2/files/upload/presigned-url:
+    post:
+      summary: Request presigned upload URL
+      operationId: get_upload_url
+      description: "Step 1 of file upload: get presigned URL for OSS upload."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - file_name
+                - file_size
+                - content_type
+              properties:
+                file_name:
+                  type: string
+                  description: Original file name
+                file_size:
+                  type: integer
+                  description: File size in bytes
+                content_type:
+                  type: string
+                  description: MIME type (e.g. video/mp4, application/x-subrip)
+      responses:
+        "200":
+          description: Presigned URL and file metadata
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+
+  # ============================================================
+  # File - Upload Callback
+  # ============================================================
+  /v2/files/upload/callback:
+    post:
+      summary: Confirm file upload completion
+      operationId: upload_callback
+      description: "Step 3 of file upload: confirm upload success after uploading to OSS."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - file_id
+                - object_key
+                - upload_status
+                - file_size
+              properties:
+                file_id:
+                  type: string
+                  description: file_id from presigned URL response
+                object_key:
+                  type: string
+                  description: object_key from presigned URL response
+                upload_status:
+                  type: string
+                  description: "Upload status: 'success' or 'failed'"
+                  enum: [success, failed]
+                file_size:
+                  type: integer
+                  description: Actual uploaded file size in bytes
+      responses:
+        "200":
+          description: Upload confirmed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+
+  # ============================================================
+  # File - Download Presigned URL
+  # ============================================================
+  /v2/files/download/presigned-url:
+    post:
+      summary: Get presigned download URL for a file
+      operationId: get_download_url
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - file_id
+              properties:
+                file_id:
+                  type: string
+                  description: File ID to download
+      responses:
+        "200":
+          description: Download URL with expiration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+
+  # ============================================================
+  # File - List
+  # ============================================================
+  /v2/files/user/filelist:
+    get:
+      summary: List uploaded files with pagination and search
+      operationId: list_files
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            default: 10
+        - name: search
+          in: query
+          description: Filter by filename substring
+          schema:
+            type: string
+        - name: order_by
+          in: query
+          description: "Sort field: completed_time, created_at, file_size"
+          schema:
+            type: string
+            default: completed_time
+        - name: order
+          in: query
+          description: "Sort order: asc or desc"
+          schema:
+            type: string
+            default: desc
+      responses:
+        "200":
+          description: File list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+
+  # ============================================================
+  # File - Info
+  # ============================================================
+  /v2/files/get_file_information:
+    get:
+      summary: Get detailed file information
+      operationId: get_file_info
+      parameters:
+        - name: file_id
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: File details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+
+  # ============================================================
+  # File - Storage Usage
+  # ============================================================
+  /v2/files/user/storage_usage:
+    get:
+      summary: Show storage usage statistics
+      operationId: get_storage_usage
+      responses:
+        "200":
+          description: Storage usage info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+
+  # ============================================================
+  # File - Delete
+  # ============================================================
+  /v2/files/user/files/{file_id}:
+    delete:
+      summary: Delete a file (irreversible)
+      operationId: delete_file
+      parameters:
+        - name: file_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: File deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+
+  # ============================================================
+  # User - Balance
+  # ============================================================
+  /v1/users/balance:
+    get:
+      summary: Query account balance and user info
+      operationId: get_balance
+      description: "Returns: user_id, nickname, mobile (masked), balance, company_name."
+      responses:
+        "200":
+          description: Account balance info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+
+  # ============================================================
+  # User - Login
+  # ============================================================
+  /v1/users/sign_in:
+    post:
+      summary: Login with username and password
+      operationId: user_login
+      description: "Returns: access_token, expire, user_id, nickname, uuid, company_name. Does not require app-key."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+                - password
+              properties:
+                username:
+                  type: string
+                password:
+                  type: string
+      responses:
+        "200":
+          description: Login success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+
+  # ============================================================
+  # User - List Sub Keys
+  # ============================================================
+  /v1/users/app_key/sub/list:
+    get:
+      summary: List sub API keys
+      operationId: list_sub_keys
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            default: 10
+      responses:
+        "200":
+          description: Sub key list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+
+  # ============================================================
+  # User - Create Sub Key
+  # ============================================================
+  /v1/users/app_key/create:
+    post:
+      summary: Create a new sub API key
+      operationId: create_sub_key
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                remark:
+                  type: string
+                  description: Description for the sub key
+                quota:
+                  type: number
+                  description: Initial point quota
+                  default: 0
+      responses:
+        "200":
+          description: Sub key created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+
+components:
+  securitySchemes:
+    AppKeyAuth:
+      type: apiKey
+      in: header
+      name: app-key
+      description: API key for authentication. Obtain from your Narrator AI account.
+
+  schemas:
+    ApiResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: "Response code. 0=success. Error codes: 10001=failed, 10004=invalid app key, 10009=insufficient balance, 10010=task not found, 60000=retryable error."
+        message:
+          type: string
+          description: Response message
+        data:
+          type: object
+          description: Response data (varies by endpoint)
+
+    TaskCreateResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: "0=success"
+        message:
+          type: string
+        data:
+          type: object
+          properties:
+            task_id:
+              type: string
+              description: Task UUID for status polling
+
+security:
+  - AppKeyAuth: []

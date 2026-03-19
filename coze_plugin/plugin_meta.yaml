@@ -1,0 +1,159 @@
+- plugin_id: 1
+  product_id: 1
+  version: "v2.0.0"
+  openapi_doc_file: "narrator_ai_api.yaml"
+  plugin_type: 1
+  deprecated: false
+
+  manifest:
+    schema_version: "v1"
+    name_for_model: "narrator_ai"
+    name_for_human: "Narrator AI"
+    description_for_model: |
+      AI narrated video creation tool. Create narration scripts and compose videos with AI.
+      Two workflow paths:
+      1. Standard (二创文案): popular-learning -> generate-writing -> clip-data -> video-composing -> magic-video
+      2. Fast (原创文案): search-movie -> fast-writing -> fast-clip-data -> video-composing -> magic-video
+      Key rules:
+      - Always use search-movie before fast-writing with target_mode=1. Do NOT fabricate confirmed_movie_json.
+      - video-composing uses generate-writing's order_num (standard) or fast-clip-data's order_num (fast).
+      - Poll task status with query until status=2 (success) or status=3 (failed).
+      - Prefer pre-built narration templates over running popular-learning.
+    description_for_human: "AI narrated video creation - generate narration scripts and compose videos automatically"
+    logo_url: "default_icon/plugin_default_icon.png"
+
+    auth:
+      type: "service_http"
+      sub_type: "api_key"
+      payload: '{"location": "header", "key": "app-key", "service_token": ""}'
+
+    api:
+      type: "openapi"
+
+    common_params:
+      header: []
+      path: []
+      query: []
+      body: []
+
+  tools:
+    # Task creation tools
+    - tool_id: 1
+      method: "post"
+      sub_url: "/v2/task/commentary/create_popular_learning"
+      deprecated: false
+    - tool_id: 2
+      method: "post"
+      sub_url: "/v2/task/commentary/create_generate_writing"
+      deprecated: false
+    - tool_id: 3
+      method: "post"
+      sub_url: "/v2/task/commentary/create_fast_generate_writing"
+      deprecated: false
+    - tool_id: 4
+      method: "post"
+      sub_url: "/v2/task/commentary/create_generate_clip_data"
+      deprecated: false
+    - tool_id: 5
+      method: "post"
+      sub_url: "/v2/task/commentary/create_generate_fast_writing_clip_data"
+      deprecated: false
+    - tool_id: 6
+      method: "post"
+      sub_url: "/v2/task/commentary/create_video_composing"
+      deprecated: false
+    - tool_id: 7
+      method: "post"
+      sub_url: "/v2/task/commentary/create_magic_video"
+      deprecated: false
+    - tool_id: 8
+      method: "post"
+      sub_url: "/v2/task/voice_clone/create"
+      deprecated: false
+    - tool_id: 9
+      method: "post"
+      sub_url: "/v2/task/text_to_speech/create"
+      deprecated: false
+    # Task query tools
+    - tool_id: 10
+      method: "get"
+      sub_url: "/v2/task/commentary/query/{task_id}"
+      deprecated: false
+    - tool_id: 11
+      method: "get"
+      sub_url: "/v2/task/commentary/list"
+      deprecated: false
+    - tool_id: 12
+      method: "post"
+      sub_url: "/v2/task/commentary/consume_budget"
+      deprecated: false
+    - tool_id: 13
+      method: "post"
+      sub_url: "/v2/task/commentary/material_verification"
+      deprecated: false
+    - tool_id: 14
+      method: "get"
+      sub_url: "/v2/task/commentary/get_generate_writed"
+      deprecated: false
+    - tool_id: 15
+      method: "post"
+      sub_url: "/v2/task/commentary/save_generate_writed"
+      deprecated: false
+    - tool_id: 16
+      method: "post"
+      sub_url: "/v2/task/commentary/save_clip_data"
+      deprecated: false
+    - tool_id: 17
+      method: "get"
+      sub_url: "/v2/task/commentary/search_media_information"
+      deprecated: false
+    - tool_id: 18
+      method: "get"
+      sub_url: "/v2/task/commentary/get_magic_templates"
+      deprecated: false
+    # File tools
+    - tool_id: 19
+      method: "post"
+      sub_url: "/v2/files/upload/presigned-url"
+      deprecated: false
+    - tool_id: 20
+      method: "post"
+      sub_url: "/v2/files/upload/callback"
+      deprecated: false
+    - tool_id: 21
+      method: "post"
+      sub_url: "/v2/files/download/presigned-url"
+      deprecated: false
+    - tool_id: 22
+      method: "get"
+      sub_url: "/v2/files/user/filelist"
+      deprecated: false
+    - tool_id: 23
+      method: "get"
+      sub_url: "/v2/files/get_file_information"
+      deprecated: false
+    - tool_id: 24
+      method: "get"
+      sub_url: "/v2/files/user/storage_usage"
+      deprecated: false
+    - tool_id: 25
+      method: "delete"
+      sub_url: "/v2/files/user/files/{file_id}"
+      deprecated: false
+    # User tools
+    - tool_id: 26
+      method: "get"
+      sub_url: "/v1/users/balance"
+      deprecated: false
+    - tool_id: 27
+      method: "post"
+      sub_url: "/v1/users/sign_in"
+      deprecated: false
+    - tool_id: 28
+      method: "get"
+      sub_url: "/v1/users/app_key/sub/list"
+      deprecated: false
+    - tool_id: 29
+      method: "post"
+      sub_url: "/v1/users/app_key/create"
+      deprecated: false
