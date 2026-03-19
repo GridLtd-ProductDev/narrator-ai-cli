@@ -5,6 +5,7 @@ from typing import Optional
 import typer
 
 from narrator_ai.output import console, print_error, print_json, print_table
+from narrator_ai import DOCS_URL
 
 app = typer.Typer(
     help=(
@@ -145,7 +146,7 @@ def list_materials(
             title = f"Movie Materials - {genre} ({len(items)})"
         columns = [("name", "Movie"), ("video_id", "Video ID"), ("srt_id", "SRT ID"), ("genre", "Genre")]
         print_table(items, columns, title=title)
-        console.print(f"\n[dim]View previews: https://ceex7z9m67.feishu.cn/wiki/WLPnwBysairenFkZDbicZOfKnbc[/dim]")
+        console.print(f"\n[dim]View previews: {DOCS_URL}[/dim]")
 
 
 @app.command("genres")

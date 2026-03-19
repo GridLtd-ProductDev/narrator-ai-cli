@@ -14,7 +14,6 @@ CONFIG_FILE = CONFIG_DIR / "config.yaml"
 DEFAULT_CONFIG = {
     "server": "",
     "app_key": "",
-    "output": "table",  # "table" or "json"
     "timeout": 30,
 }
 
@@ -61,5 +60,3 @@ def get_app_key() -> str:
 def get_timeout() -> int:
     cfg = load_config()
     return int(os.environ.get("NARRATOR_TIMEOUT", cfg.get("timeout", 30)))
-
-

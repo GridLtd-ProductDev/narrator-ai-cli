@@ -9,7 +9,7 @@ app = typer.Typer(
     help=(
         "Manage CLI configuration.\n\n"
         "Config is stored in ~/.narrator-ai/config.yaml.\n"
-        "Environment variables NARRATOR_SERVER, NARRATOR_APP_KEY, NARRATOR_TIMEOUT, NARRATOR_OUTPUT override config values."
+        "Environment variables NARRATOR_SERVER, NARRATOR_APP_KEY, NARRATOR_TIMEOUT override config values."
     ),
 )
 
@@ -18,14 +18,12 @@ app = typer.Typer(
 def init(
     server: str = typer.Option(..., prompt="Server URL (e.g. https://api.example.com)"),
     app_key: str = typer.Option(..., prompt="App Key"),
-    output: str = typer.Option("table", help="Default output format: table or json"),
     timeout: int = typer.Option(30, help="Request timeout in seconds"),
 ):
     """Initialize configuration interactively. Prompts for server URL and app key."""
     config = {
         "server": server.rstrip("/"),
         "app_key": app_key,
-        "output": output,
         "timeout": timeout,
     }
     save_config(config)
@@ -50,7 +48,7 @@ def show(
 
 @app.command("set")
 def set_value(
-    key: str = typer.Argument(..., help="Config key: server, app_key, output, timeout"),
+    key: str = typer.Argument(..., help="Config key: server, app_key, timeout"),
     value: str = typer.Argument(..., help="Config value"),
 ):
     """Set a single configuration value.
@@ -58,12 +56,11 @@ def set_value(
     Examples:
       narrator-ai-cli config set server https://api.example.com
       narrator-ai-cli config set app_key your_api_key
-      narrator-ai-cli config set output json
       narrator-ai-cli config set timeout 60
     """
     cfg = load_config()
-    if key not in ("server", "app_key", "output", "timeout"):
-        raise typer.BadParameter(f"Unknown config key: {key}. Valid: server, app_key, output, timeout")
+    if key not in ("server", "app_key", "timeout"):
+        raise typer.BadParameter(f"Unknown config key: {key}. Valid: server, app_key, timeout")
     if key == "timeout":
         cfg[key] = int(value)
     elif key == "server":

@@ -8,6 +8,7 @@ import sys
 from typing import Any, Optional
 
 from rich.console import Console
+from rich.markup import escape
 from rich.panel import Panel
 from rich.table import Table
 
@@ -21,7 +22,6 @@ def print_json(data: Any):
 
 
 def print_error(message: str, code: Optional[int] = None):
-    from rich.markup import escape
     prefix = f"[{code}] " if code else ""
     err_console.print(f"[red]Error: {escape(prefix + message)}[/red]")
 
@@ -82,7 +82,6 @@ def print_sse_event(event_type: str, data: dict, json_mode: bool = False):
         return
     msg = data.get("message", data.get("status", ""))
     progress = data.get("progress")
-    from rich.markup import escape
     if progress is not None:
         err_console.print(f"  [{event_type}] {escape(str(msg))} ({progress}%)")
     elif msg:

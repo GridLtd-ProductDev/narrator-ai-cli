@@ -23,6 +23,7 @@ from narrator_ai.models.responses import (
     TASK_STATUS_FAILED,
     TASK_STATUS_CANCELLED,
 )
+from narrator_ai import DOCS_URL
 from narrator_ai.output import (
     console,
     print_dict,
@@ -596,7 +597,7 @@ def list_narration_styles(
         title = f"Narration Styles - {genre}" if genre else f"Narration Styles ({len(items)} templates)"
         columns = [("name", "Template"), ("id", "learning_model_id"), ("genre", "Genre")]
         print_table(items, columns, title=title)
-        console.print("\n[dim]View previews: https://ceex7z9m67.feishu.cn/wiki/WLPnwBysairenFkZDbicZOfKnbc[/dim]")
+        console.print(f"\n[dim]View previews: {DOCS_URL}[/dim]")
 
 
 @app.command("templates")

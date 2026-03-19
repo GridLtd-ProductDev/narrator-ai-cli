@@ -5,6 +5,7 @@ from typing import Optional
 import typer
 
 from narrator_ai.output import console, print_error, print_json, print_table
+from narrator_ai import DOCS_URL
 
 app = typer.Typer(
     help=(
@@ -190,4 +191,4 @@ def list_bgm(
             title = f"BGM Tracks matching '{search}' ({len(items)})"
         columns = [("name", "BGM Name"), ("id", "BGM ID")]
         print_table(items, columns, title=title)
-        console.print(f"\n[dim]View previews: https://ceex7z9m67.feishu.cn/wiki/WLPnwBysairenFkZDbicZOfKnbc[/dim]")
+        console.print(f"\n[dim]View previews: {DOCS_URL}[/dim]")
