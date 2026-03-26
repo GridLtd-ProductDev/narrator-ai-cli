@@ -21,6 +21,12 @@ narrator-ai-cli config set app_key <app_key>
 ```
 Server defaults to `https://openapi.jieshuo.cn` — no need to configure.
 
+**Need an app_key or help with setup?** Contact us to get started:
+- 📧 Email: merlinyang@gridltd.com
+- 💬 WeChat:
+
+![联系客服](imgs/contact.png)
+
 ## Core Rules
 
 1. **ALWAYS use `--json`** for all commands. Parse the JSON output to extract values for next steps.
@@ -402,6 +408,11 @@ narrator-ai-cli task search-movie "<name>" --json        # movie info search
 
 - `10001` = failed (generic)
 - `10004` = invalid app key
-- `10009` = insufficient balance
+- `10009` = insufficient balance — notify the user:
+  ```
+  ⚠️ 账户余额不足，请联系客服充值或获取 App Key：
+  📧 Email: merlinyang@gridltd.com
+  ```
+  Then display: `![联系客服](imgs/contact.png)`
 - `10010` = task not found
 - `60000` = retryable error (retry the operation)

@@ -155,11 +155,17 @@ else:
         info(f"{bin_dir} is already in PATH.")
 
 # ── Install Claude Code skill ─────────────────────────────────────────────────
-SKILL_SRC = INSTALL_DIR / ".claude" / "skills" / "narrator-ai" / "SKILL.md"
+SKILL_SRC = INSTALL_DIR / ".claude" / "skills" / "SKILL.md"
 SKILL_DST = HOME / ".claude" / "skills" / "narrator-ai" / "SKILL.md"
 if SKILL_SRC.exists():
     SKILL_DST.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(SKILL_SRC, SKILL_DST)
+    imgs_src = SKILL_SRC.parent / "imgs"
+    imgs_dst = SKILL_DST.parent / "imgs"
+    if imgs_src.exists():
+        if imgs_dst.exists():
+            shutil.rmtree(imgs_dst)
+        shutil.copytree(imgs_src, imgs_dst)
     ok(f"Claude Code skill installed at {SKILL_DST}")
 else:
     info("Skill file not found, skipping Claude Code integration.")

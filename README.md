@@ -303,3 +303,11 @@ See [SKILL.md](SKILL.md) for a comprehensive machine-readable guide including:
 - Full parameter references for each task type
 - Step-by-step workflow examples with exact commands
 - Error handling guidance
+
+## Contact
+
+Need an app_key or help getting started? Reach out:
+
+- 📧 Email: merlinyang@gridltd.com
+
+![Contact us](./imgs/contact.png)
