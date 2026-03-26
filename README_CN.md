@@ -304,3 +304,11 @@ src/narrator_ai/
 - 逐步工作流示例（附完整命令）
 - 6 个决策点说明（需要用户选择的地方）
 - 错误处理指南
+
+## 联系我们
+
+需要 app_key 或使用帮助？欢迎联系：
+
+- 📧 邮箱：merlinyang@gridltd.com
+
+![联系客服](./imgs/contact.png)
