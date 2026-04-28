@@ -2,7 +2,7 @@
 
 import typer
 
-from narrator_ai.client import NarratorClient, NarratorAPIError
+from narrator_ai.client import NarratorAPIError, NarratorClient
 from narrator_ai.output import print_dict, print_error, print_json, print_table
 
 app = typer.Typer(help="User account management: balance, authentication, and API key operations.")
@@ -41,11 +41,15 @@ def login(
     """
     try:
         from narrator_ai.config import get_server
+
         client = NarratorClient(server=get_server(), app_key="")
-        data = client.post("/v1/users/sign_in", json={
-            "username": username,
-            "password": password,
-        })
+        data = client.post(
+            "/v1/users/sign_in",
+            json={
+                "username": username,
+                "password": password,
+            },
+        )
         print_dict(data, title="Login Success", json_mode=json)
     except NarratorAPIError as e:
         print_error(e.message, e.code)
@@ -63,10 +67,13 @@ def keys(
     Returns: total, page, page_size, items[{id, app_key, credit_quota, credit_quota_balance, status, remark}].
     """
     try:
-        data = _client().get("/v1/users/app_key/sub/list", params={
-            "page": page,
-            "page_size": page_size,
-        })
+        data = _client().get(
+            "/v1/users/app_key/sub/list",
+            params={
+                "page": page,
+                "page_size": page_size,
+            },
+        )
         if json:
             print_json(data)
         else:
@@ -94,10 +101,13 @@ def create_key(
 ):
     """Create a new sub API key with optional quota and remark."""
     try:
-        data = _client().post("/v1/users/app_key/create", json={
-            "remark": remark,
-            "quota": quota,
-        })
+        data = _client().post(
+            "/v1/users/app_key/create",
+            json={
+                "remark": remark,
+                "quota": quota,
+            },
+        )
         print_dict(data, title="Sub Key Created", json_mode=json)
     except NarratorAPIError as e:
         print_error(e.message, e.code)

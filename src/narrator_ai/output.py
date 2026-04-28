@@ -5,7 +5,7 @@ Supports JSON mode (for agents) and rich table mode (for humans).
 
 import json
 import sys
-from typing import Any, Optional
+from typing import Any
 
 from rich.console import Console
 from rich.markup import escape
@@ -21,7 +21,7 @@ def print_json(data: Any):
     print(json.dumps(data, ensure_ascii=False, indent=2, default=str))
 
 
-def print_error(message: str, code: Optional[int] = None):
+def print_error(message: str, code: int | None = None):
     prefix = f"[{code}] " if code else ""
     err_console.print(f"[red]Error: {escape(prefix + message)}[/red]")
 
@@ -34,7 +34,7 @@ def print_info(message: str):
     err_console.print(f"[blue]{message}[/blue]")
 
 
-def print_dict(data: dict, title: Optional[str] = None, json_mode: bool = False):
+def print_dict(data: dict, title: str | None = None, json_mode: bool = False):
     """Print a dict as JSON or a rich panel."""
     if json_mode:
         print_json(data)
@@ -53,7 +53,7 @@ def print_dict(data: dict, title: Optional[str] = None, json_mode: bool = False)
 def print_table(
     items: list[dict],
     columns: list[tuple[str, str]],
-    title: Optional[str] = None,
+    title: str | None = None,
     json_mode: bool = False,
 ):
     """Print a list of dicts as JSON or a rich table.

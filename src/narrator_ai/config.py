@@ -25,7 +25,7 @@ def ensure_config_dir():
 def load_config() -> dict:
     if not CONFIG_FILE.exists():
         return dict(DEFAULT_CONFIG)
-    with open(CONFIG_FILE, "r") as f:
+    with open(CONFIG_FILE) as f:
         data = yaml.safe_load(f) or {}
     return {**DEFAULT_CONFIG, **data}
 
@@ -41,9 +41,7 @@ def get_server() -> str:
     cfg = load_config()
     server = os.environ.get("NARRATOR_SERVER", cfg.get("server", ""))
     if not server:
-        raise SystemExit(
-            "Server not configured. Run: narrator-ai-cli config init"
-        )
+        raise SystemExit("Server not configured. Run: narrator-ai-cli config init")
     return server.rstrip("/")
 
 
@@ -51,9 +49,7 @@ def get_app_key() -> str:
     cfg = load_config()
     key = os.environ.get("NARRATOR_APP_KEY", cfg.get("app_key", ""))
     if not key:
-        raise SystemExit(
-            "API key not configured. Run: narrator-ai-cli config init"
-        )
+        raise SystemExit("API key not configured. Run: narrator-ai-cli config init")
     return key
 
 
