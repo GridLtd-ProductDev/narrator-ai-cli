@@ -1,11 +1,9 @@
 """Pre-built dubbing (voice) resources for task creation."""
 
-from typing import Optional
-
 import typer
 
-from narrator_ai.output import console, print_error, print_json, print_table
 from narrator_ai import DOCS_URL
+from narrator_ai.output import console, print_error, print_json, print_table
 
 app = typer.Typer(
     help=(
@@ -42,13 +40,23 @@ DUBBING_LIST = [
     {"name": "严肃青年解说-适合动作、冒险类", "id": "mercury_yunxi_24k@serious", "type": "普通话", "tag": "动作冒险"},
     {"name": "气泡音男声-适合动作、冒险类", "id": "momoyuan_meet_24k", "type": "普通话", "tag": "动作冒险"},
     {"name": "慵懒调侃男声-适合动作、冒险类", "id": "jupiter_BV107DialogMale", "type": "普通话", "tag": "动作冒险"},
-    {"name": "神秘女声-适合动作、冒险、恐怖、惊悚类", "id": "galaxy_fastv7_moyingxi@angry", "type": "普通话", "tag": "动作冒险"},
+    {
+        "name": "神秘女声-适合动作、冒险、恐怖、惊悚类",
+        "id": "galaxy_fastv7_moyingxi@angry",
+        "type": "普通话",
+        "tag": "动作冒险",
+    },
     {"name": "东北老妹儿-适合喜剧", "id": "mercury_ln-xiaobei_24k", "type": "普通话", "tag": "喜剧"},
     {"name": "幽默闲聊女声-适合喜剧", "id": "galaxy_fastv8_moxueqin", "type": "普通话", "tag": "喜剧"},
     {"name": "犀利青年音-适合喜剧", "id": "galaxy_fastv8_mowasi", "type": "普通话", "tag": "喜剧"},
     {"name": "恐惧感大叔音-适合恐怖、惊悚类", "id": "mercury_yunye_24k@fearful", "type": "普通话", "tag": "恐怖惊悚"},
     {"name": "恐惧低沉大叔音-适合恐怖、惊悚类", "id": "mercury_yunze_24k@fearful", "type": "普通话", "tag": "恐怖惊悚"},
-    {"name": "不安男声-适合恐怖、惊悚类、科幻", "id": "mercury_yunxi_48k@embarrassed", "type": "普通话", "tag": "恐怖惊悚"},
+    {
+        "name": "不安男声-适合恐怖、惊悚类、科幻",
+        "id": "mercury_yunxi_48k@embarrassed",
+        "type": "普通话",
+        "tag": "恐怖惊悚",
+    },
     {"name": "松弛大叔音-适合爱情、剧情类", "id": "mercury_yunyang_24k@newscast", "type": "普通话", "tag": "爱情剧情"},
     {"name": "元气少女音-适合爱情、剧情类", "id": "mercury_xiaochen_48k", "type": "普通话", "tag": "爱情剧情"},
     {"name": "磁性御姐音-适合爱情、剧情类", "id": "yangjingv_meet_24k", "type": "普通话", "tag": "爱情剧情"},
@@ -56,7 +64,12 @@ DUBBING_LIST = [
     {"name": "快嘴直爽青年-适合科幻类", "id": "moxidu_meet_24k@kehuan", "type": "普通话", "tag": "科幻"},
     {"name": "磁性悬疑男声-适合科幻类", "id": "manchaozn_meet_24k@boya", "type": "普通话", "tag": "科幻"},
     {"name": "冷静青年解说-适合历史、战争类", "id": "mercury_yunxi_48k@calm", "type": "普通话", "tag": "历史战争"},
-    {"name": "沉稳大叔音-适合历史、战争类", "id": "mercury_yunze_24k@documentary-narration", "type": "普通话", "tag": "历史战争"},
+    {
+        "name": "沉稳大叔音-适合历史、战争类",
+        "id": "mercury_yunze_24k@documentary-narration",
+        "type": "普通话",
+        "tag": "历史战争",
+    },
     {"name": "纪实磁性男声-适合历史、战争类", "id": "manchaozn_meet_24k@jilupian", "type": "普通话", "tag": "历史战争"},
     {"name": "沉稳御姐音-适合历史、战争类", "id": "liyuansong_meet_24k@tale", "type": "普通话", "tag": "历史战争"},
     # 英语
@@ -98,9 +111,11 @@ DUBBING_LIST = [
 
 @app.command("list")
 def list_dubbing(
-    lang: Optional[str] = typer.Option(None, "--lang", "-l", help="Filter by language/dubbing_type (e.g. 普通话, 英语, 日语)"),
-    tag: Optional[str] = typer.Option(None, "--tag", "-t", help="Filter by tag (e.g. 喜剧, 恐怖惊悚, 角色, 通用男声)"),
-    search: Optional[str] = typer.Option(None, "--search", "-s", help="Search by voice name"),
+    lang: str | None = typer.Option(
+        None, "--lang", "-l", help="Filter by language/dubbing_type (e.g. 普通话, 英语, 日语)"
+    ),
+    tag: str | None = typer.Option(None, "--tag", "-t", help="Filter by tag (e.g. 喜剧, 恐怖惊悚, 角色, 通用男声)"),
+    search: str | None = typer.Option(None, "--search", "-s", help="Search by voice name"),
     json_mode: bool = typer.Option(False, "--json", help="Output as JSON"),
 ):
     """List pre-built dubbing voices.
@@ -143,13 +158,16 @@ def list_languages(
     lang_counts = {}
     for d in DUBBING_LIST:
         lang_counts[d["type"]] = lang_counts.get(d["type"], 0) + 1
-    items = [{"language": l, "count": c} for l, c in sorted(lang_counts.items())]
+    items = [{"language": lang, "count": cnt} for lang, cnt in sorted(lang_counts.items())]
 
     if json_mode:
         print_json(items)
     else:
-        print_table(items, [("language", "Language (dubbing_type)"), ("count", "Count")],
-                    title=f"Dubbing Languages ({len(DUBBING_LIST)} voices)")
+        print_table(
+            items,
+            [("language", "Language (dubbing_type)"), ("count", "Count")],
+            title=f"Dubbing Languages ({len(DUBBING_LIST)} voices)",
+        )
 
 
 @app.command("tags")
@@ -165,5 +183,4 @@ def list_tags(
     if json_mode:
         print_json(items)
     else:
-        print_table(items, [("tag", "Tag"), ("count", "Count")],
-                    title=f"Voice Tags ({len(DUBBING_LIST)} voices)")
+        print_table(items, [("tag", "Tag"), ("count", "Count")], title=f"Voice Tags ({len(DUBBING_LIST)} voices)")

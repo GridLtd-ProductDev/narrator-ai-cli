@@ -2,9 +2,9 @@
 
 import typer
 
-from narrator_ai.client import NarratorClient, NarratorAPIError
-from narrator_ai.output import console, print_error, print_json, print_table
 from narrator_ai import DOCS_URL
+from narrator_ai.client import NarratorAPIError, NarratorClient
+from narrator_ai.output import console, print_error, print_json, print_table
 
 app = typer.Typer(
     help=(

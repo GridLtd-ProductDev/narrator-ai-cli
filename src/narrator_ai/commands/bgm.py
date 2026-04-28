@@ -1,11 +1,9 @@
 """Pre-built BGM (background music) resources for task creation."""
 
-from typing import Optional
-
 import typer
 
-from narrator_ai.output import console, print_error, print_json, print_table
 from narrator_ai import DOCS_URL
+from narrator_ai.output import console, print_error, print_json, print_table
 
 app = typer.Typer(
     help=(
@@ -168,7 +166,7 @@ BGM_LIST = [
 
 @app.command("list")
 def list_bgm(
-    search: Optional[str] = typer.Option(None, "--search", "-s", help="Search by BGM name"),
+    search: str | None = typer.Option(None, "--search", "-s", help="Search by BGM name"),
     json_mode: bool = typer.Option(False, "--json", help="Output as JSON"),
 ):
     """List pre-built BGM tracks. Use the ID as 'bgm' parameter in task creation.

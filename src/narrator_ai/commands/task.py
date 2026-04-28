@@ -11,27 +11,26 @@ Supports two workflow paths:
 
 import json as _json
 from pathlib import Path
-from typing import Optional
 
 import typer
 
-from narrator_ai.client import NarratorClient, NarratorAPIError
-from narrator_ai.models.responses import (
-    TASK_STATUS_INIT,
-    TASK_STATUS_IN_PROGRESS,
-    TASK_STATUS_SUCCESS,
-    TASK_STATUS_FAILED,
-    TASK_STATUS_CANCELLED,
-)
 from narrator_ai import DOCS_URL
+from narrator_ai.client import NarratorAPIError, NarratorClient
+from narrator_ai.models.responses import (
+    TASK_STATUS_CANCELLED,
+    TASK_STATUS_FAILED,
+    TASK_STATUS_IN_PROGRESS,
+    TASK_STATUS_INIT,
+    TASK_STATUS_SUCCESS,
+)
 from narrator_ai.output import (
     console,
     print_dict,
     print_error,
+    print_info,
     print_json,
     print_sse_event,
     print_table,
-    print_info,
 )
 
 app = typer.Typer(
@@ -203,7 +202,9 @@ def create(
         help="Task type: popular-learning, generate-writing, fast-writing, clip-data, fast-clip-data, video-composing, magic-video, voice-clone, tts",
     ),
     data: str = typer.Option(
-        ..., "-d", "--data",
+        ...,
+        "-d",
+        "--data",
         help="Request body as JSON string or @file.json reference",
     ),
     stream: bool = typer.Option(False, "--stream", "-s", help="Use SSE streaming for real-time progress"),
@@ -289,14 +290,17 @@ def query(
 def list_tasks(
     page: int = typer.Option(1, help="Page number (starting from 1)"),
     limit: int = typer.Option(10, help="Items per page, max 100"),
-    status: Optional[int] = typer.Option(None, help="Filter by status: 0=init, 1=in_progress, 2=success, 3=failed, 4=cancelled"),
-    task_type: Optional[int] = typer.Option(
-        None, "--type",
-        help="Filter by type: 1=popular_learning, 2=generate_writing, 3=video_composing, "
-             "4=voice_clone, 5=tts, 6=clip_data, 7=magic_video, 8=subsync, "
-             "9=fast_writing, 10=fast_clip_data",
+    status: int | None = typer.Option(
+        None, help="Filter by status: 0=init, 1=in_progress, 2=success, 3=failed, 4=cancelled"
     ),
-    category: Optional[str] = typer.Option(None, help="Filter by category: translate or commentary"),
+    task_type: int | None = typer.Option(
+        None,
+        "--type",
+        help="Filter by type: 1=popular_learning, 2=generate_writing, 3=video_composing, "
+        "4=voice_clone, 5=tts, 6=clip_data, 7=magic_video, 8=subsync, "
+        "9=fast_writing, 10=fast_clip_data",
+    ),
+    category: str | None = typer.Option(None, help="Filter by category: translate or commentary"),
     json_mode: bool = typer.Option(False, "--json", help="Output as JSON (recommended for agents)"),
 ):
     """List tasks with pagination and optional filters."""
@@ -325,7 +329,8 @@ def list_tasks(
                 ("created_at", "Created"),
             ]
             print_table(
-                items, columns,
+                items,
+                columns,
                 title=f"Tasks (page {data.get('page')}/{max(1, -(-data.get('total', 0) // limit))}, total: {data.get('total', 0)})",
             )
     except NarratorAPIError as e:
@@ -389,10 +394,13 @@ def get_writing(
 ):
     """Retrieve generated narration script content for review or editing."""
     try:
-        data = _client().get("/v2/task/commentary/get_generate_writed", params={
-            "task_id": task_id,
-            "file_id": file_id,
-        })
+        data = _client().get(
+            "/v2/task/commentary/get_generate_writed",
+            params={
+                "task_id": task_id,
+                "file_id": file_id,
+            },
+        )
         print_dict(data, title="Generated Writing", json_mode=json_mode)
     except NarratorAPIError as e:
         print_error(e.message, e.code)
@@ -572,7 +580,7 @@ NARRATION_TEMPLATES = [
 
 @app.command("narration-styles")
 def list_narration_styles(
-    genre: Optional[str] = typer.Option(None, "--genre", "-g", help="Filter by genre (e.g. 情感人生, 烧脑悬疑, 爆笑喜剧)"),
+    genre: str | None = typer.Option(None, "--genre", "-g", help="Filter by genre (e.g. 情感人生, 烧脑悬疑, 爆笑喜剧)"),
     json_mode: bool = typer.Option(False, "--json", help="Output as JSON"),
 ):
     """List pre-built narration style templates (learning_model_id).

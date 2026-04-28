@@ -2,11 +2,10 @@
 
 import mimetypes
 from pathlib import Path
-from typing import Optional
 
 import typer
 
-from narrator_ai.client import NarratorClient, NarratorAPIError
+from narrator_ai.client import NarratorAPIError, NarratorClient
 from narrator_ai.output import (
     print_dict,
     print_error,
@@ -61,11 +60,14 @@ def upload(
     try:
         # Step 1: Get presigned upload URL
         print_info(f"Requesting upload URL for {file_name} ({file_size:,} bytes)...")
-        presigned = client.post("/v2/files/upload/presigned-url", json={
-            "file_name": file_name,
-            "file_size": file_size,
-            "content_type": content_type,
-        })
+        presigned = client.post(
+            "/v2/files/upload/presigned-url",
+            json={
+                "file_name": file_name,
+                "file_size": file_size,
+                "content_type": content_type,
+            },
+        )
 
         # Step 2: Upload to OSS
         upload_url = presigned["upload_url"]
@@ -74,12 +76,15 @@ def upload(
 
         # Step 3: Confirm callback
         print_info("Confirming upload...")
-        result = client.post("/v2/files/upload/callback", json={
-            "file_id": presigned["file_id"],
-            "object_key": presigned["object_key"],
-            "upload_status": "success",
-            "file_size": file_size,
-        })
+        client.post(
+            "/v2/files/upload/callback",
+            json={
+                "file_id": presigned["file_id"],
+                "object_key": presigned["object_key"],
+                "upload_status": "success",
+                "file_size": file_size,
+            },
+        )
 
         output = {
             "file_id": presigned["file_id"],
@@ -96,9 +101,11 @@ def upload(
 
 @app.command()
 def transfer(
-    link: Optional[str] = typer.Option(None, help="File link (HTTP URL, Baidu Netdisk share link, or PikPak link)"),
-    upload_id: Optional[str] = typer.Option(None, help="Upload ID associated with the file being transferred"),
-    type: Optional[str] = typer.Option(None, help="Link type: url=HTTP, baidu=Baidu Netdisk, pikpak=PikPak (auto-detected if omitted)"),
+    link: str | None = typer.Option(None, help="File link (HTTP URL, Baidu Netdisk share link, or PikPak link)"),
+    upload_id: str | None = typer.Option(None, help="Upload ID associated with the file being transferred"),
+    type: str | None = typer.Option(
+        None, help="Link type: url=HTTP, baidu=Baidu Netdisk, pikpak=PikPak (auto-detected if omitted)"
+    ),
     json_mode: bool = typer.Option(False, "--json", help="Output as JSON"),
 ):
     """Transfer a remote file to cloud storage by link (HTTP, Baidu Netdisk, or PikPak).
@@ -144,18 +151,24 @@ def download(
 ):
     """Get a presigned download URL for a file. URL expires after a limited time."""
     try:
-        data = _client().post("/v2/files/download/presigned-url", json={
-            "file_id": file_id,
-        })
+        data = _client().post(
+            "/v2/files/download/presigned-url",
+            json={
+                "file_id": file_id,
+            },
+        )
         if json_mode:
             print_json(data)
         else:
-            print_dict({
-                "file_id": data.get("file_id"),
-                "file_name": data.get("file_name"),
-                "download_url": data.get("download_url"),
-                "expires_in": f"{data.get('expires_in', 0)} seconds",
-            }, title="Download URL")
+            print_dict(
+                {
+                    "file_id": data.get("file_id"),
+                    "file_name": data.get("file_name"),
+                    "download_url": data.get("download_url"),
+                    "expires_in": f"{data.get('expires_in', 0)} seconds",
+                },
+                title="Download URL",
+            )
     except NarratorAPIError as e:
         print_error(e.message, e.code)
         raise typer.Exit(1)
@@ -165,7 +178,7 @@ def download(
 def list_files(
     page: int = typer.Option(1, help="Page number"),
     page_size: int = typer.Option(10, help="Items per page"),
-    search: Optional[str] = typer.Option(None, help="Filter by filename (substring match)"),
+    search: str | None = typer.Option(None, help="Filter by filename (substring match)"),
     order_by: str = typer.Option("completed_time", help="Sort field: completed_time, created_at, file_size"),
     order: str = typer.Option("desc", help="Sort order: asc or desc"),
     json_mode: bool = typer.Option(False, "--json", help="Output as JSON"),
