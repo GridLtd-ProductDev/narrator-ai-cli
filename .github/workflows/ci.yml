@@ -59,6 +59,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - run: python -m pip install --upgrade pip
       - run: pip install pip-audit bandit
       - name: Install project
         run: pip install -e ".[dev]"
